@@ -1,9 +1,0 @@
-__pycache__/
-logs/
-cookie*
-venv/
-courses/
-dist/
-build/
-main.spec
-course.json
