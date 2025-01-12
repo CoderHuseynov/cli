@@ -15,8 +15,15 @@
  * - This version uses modern JavaScript/TypeScript tools and frameworks for scalability and performance.
  */
 
-import { parseArgs } from "./lib/cli";
-import { loadConfig } from "./lib/config";
+import { parseArgs } from "@/lib/cli";
+import { loadConfig } from "@/lib/config";
+import { UdemyController } from "@/controller";
 
-export const context = await parseArgs();
+const context = await parseArgs();
 context.config = await loadConfig(context.config);
+
+const controller = new UdemyController(context);
+
+if (context.searchQuery) await controller.search();
+
+await controller.download();
