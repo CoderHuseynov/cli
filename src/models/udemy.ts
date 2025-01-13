@@ -1,3 +1,13 @@
+export interface UdemySearchCourse {
+	id: number;
+	title: string;
+	headline: string;
+	rating: number;
+	hrs_of_content_f: string;
+	url: string;
+	is_in_user_subscription: boolean;
+}
+
 export interface UdemyCourse {
 	_class: string;
 	title: string;

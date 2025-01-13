@@ -4,7 +4,6 @@
  *              This project is a downloader and course management tool for Udemy,
  *              migrated from its original Python implementation to a JavaScript/TypeScript stack.
  * @project Udemix CLI
- * @version 2.0 (JavaScript/TypeScript)
  * @author Swargaraj
  * @license MIT
  * @created 2025-01-11
@@ -18,12 +17,16 @@
 import { parseArgs } from "@/lib/cli";
 import { loadConfig } from "@/lib/config";
 import { UdemyController } from "@/controller";
+import { log } from "./lib/logger";
 
 const context = await parseArgs();
 context.config = await loadConfig(context.config);
 
 const controller = new UdemyController(context);
 
-if (context.searchQuery) await controller.search();
-
-await controller.download();
+try {
+	if (context.searchQuery) await controller.search();
+	await controller.download();
+} catch (error) {
+	log.error((error as Error).message);
+}

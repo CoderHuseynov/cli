@@ -1,12 +1,15 @@
 import type { Config } from "@/models/context";
 import * as fs from "fs";
+import * as path from "path";
 import prompts from "prompts";
 import { z } from "zod";
 import { log } from "./logger";
 import { filterNullValues, isValidJsonCookie, isValidNetscapeCookie } from "./utils";
 import chalk from "chalk";
+import getAppDataPath from "appdata-path";
 
-const configFilePath = "./config.json";
+const configFilePath = path.join(getAppDataPath("udemix"), "config.json");
+const configDirPath = path.dirname(configFilePath);
 
 const configSchema: z.ZodType<Config> = z.object({
 	cookiePath: z.string(),
@@ -21,8 +24,7 @@ const configSchema: z.ZodType<Config> = z.object({
 });
 
 const defaultConfig: Config = {
-	cookiePath: "",
-	concurrent: 1,
+	concurrent: 4,
 	cookieType: "json",
 	skipCaptions: false,
 	skipAssets: false,
@@ -32,13 +34,16 @@ const defaultConfig: Config = {
 	captionType: "vtt"
 };
 
-async function readConfigFile(): Promise<Config | null> {
+async function readConfigFile(): Promise<Config | undefined> {
 	try {
 		const configFile = await fs.promises.readFile(configFilePath, "utf-8");
 		return JSON.parse(configFile);
 	} catch (error) {
+		if ((error as any).code === "ENOENT") {
+			log.info(`Config file not found. Creating a new one at ${configFilePath}`);
+			return {};
+		}
 		log.error("Error reading config file:", error);
-		return null;
 	}
 }
 
@@ -56,17 +61,24 @@ async function handleCorruptedConfig(): Promise<void> {
 	if (response.action === "exit") process.exit(1);
 }
 
-async function validateCookiePath(cookiePath: string): Promise<void> {
+async function validateCookiePath(cookiePath: string): Promise<{ path: string; type: "json" | "netscape" }> {
 	try {
 		await fs.promises.access(cookiePath);
+
+		const isValidJson = await isValidJsonCookie(cookiePath);
+		if (!isValidJson && !(await isValidNetscapeCookie(cookiePath))) {
+			log.error("Invalid cookie format: The cookie must be in either JSON or Netscape format.");
+			process.exit(1);
+		}
+
+		const fullPath = path.isAbsolute(cookiePath) ? cookiePath : path.join(process.cwd(), cookiePath);
+
+		return {
+			path: fullPath,
+			type: isValidJson ? "json" : "netscape"
+		};
 	} catch {
 		log.error("Invalid cookie path: The specified cookie path does not exist.");
-		process.exit(1);
-	}
-
-	const isValidJson = await isValidJsonCookie(cookiePath);
-	if (!isValidJson && !(await isValidNetscapeCookie(cookiePath))) {
-		log.error("Invalid cookie format: The cookie must be in either JSON or Netscape format.");
 		process.exit(1);
 	}
 }
@@ -77,7 +89,7 @@ export async function loadConfig(config?: Config): Promise<Config> {
 	try {
 		const existingConfig = await readConfigFile();
 
-		if (existingConfig === null) {
+		if (!existingConfig || existingConfig === null) {
 			await handleCorruptedConfig();
 			newConfig = {
 				...newConfig,
@@ -98,10 +110,9 @@ export async function loadConfig(config?: Config): Promise<Config> {
 			process.exit(1);
 		}
 
-		await validateCookiePath(newConfig.cookiePath);
-
-		newConfig.cookieType = (await isValidJsonCookie(newConfig.cookiePath)) ? "json" : "netscape";
-		newConfig.captionType ??= "vtt";
+		const { path, type } = await validateCookiePath(newConfig.cookiePath);
+		newConfig.cookiePath = path;
+		newConfig.cookieType = type;
 
 		const validation = configSchema.safeParse(newConfig);
 		if (!validation.success) {
@@ -114,10 +125,14 @@ export async function loadConfig(config?: Config): Promise<Config> {
 			process.exit(1);
 		}
 
-		if (newConfig.concurrent !== undefined && newConfig.concurrent > 25) {
-			log.info(
-				"More than 15 concurrent downloads detected. This may impact performance or result in throttling. Consider reducing the number of concurrent downloads."
-			);
+		if (newConfig.concurrent !== undefined && newConfig.concurrent > 15) {
+			log.warn("Using more than 15 concurrent downloads may impact performance.");
+		}
+
+		try {
+			await fs.promises.access(configDirPath, fs.constants.F_OK);
+		} catch (err) {
+			await fs.promises.mkdir(configDirPath, { recursive: true });
 		}
 
 		await fs.promises.writeFile(configFilePath, JSON.stringify(newConfig, null, 2));

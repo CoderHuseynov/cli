@@ -44,7 +44,7 @@ export async function parseArgs(): Promise<Context> {
 
 			// Download Options
 			concurrent: {
-				alias: "cn",
+				alias: "n",
 				describe: "Maximum number of downloads to process concurrently",
 				type: "number",
 				group: "Download Options"
@@ -55,7 +55,6 @@ export async function parseArgs(): Promise<Context> {
 				group: "Download Options"
 			},
 			"caption-type": {
-				alias: "ct",
 				describe: "Format of captions to download (vtt or srt)",
 				choices: ["vtt", "srt"],
 				type: "string",
@@ -114,11 +113,13 @@ export async function parseArgs(): Promise<Context> {
 		.alias("h", "help")
 		.alias("v", "version")
 		.wrap(null)
-		.middleware((args) => {
-			if (args.search && Array.isArray(args.search)) {
-				args["combinedSearch"] = args.search.join(" ").trim();
+		.middleware((argv) => {
+			// TODO: Handle Multiple Arguments
+			if (argv.search && Array.isArray(argv.search)) {
+				argv["combinedSearch"] = argv.search.join(" ").trim();
 			}
 		})
+		.strict()
 		.parse();
 
 	if (!argv.url && !argv.id && !argv["combinedSearch"]) {
@@ -137,8 +138,8 @@ export async function parseArgs(): Promise<Context> {
 		endChapter: argv["end-chapter"],
 		endLecture: argv["end-lecture"],
 		config: {
-            cookiePath: argv.cookie,
-            concurrent: argv.concurrent,
+			cookiePath: argv.cookie,
+			concurrent: argv.concurrent,
 			skipCaptions: argv["skip-captions"],
 			skipAssets: argv["skip-assets"],
 			skipLectures: argv["skip-lectures"],
