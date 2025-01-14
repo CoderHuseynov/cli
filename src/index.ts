@@ -18,6 +18,9 @@ import { parseArgs } from "@/lib/cli";
 import { loadConfig } from "@/lib/config";
 import { UdemyController } from "@/controller";
 import { log } from "./lib/logger";
+import { initializeI18n } from "./lib/i18n";
+
+await initializeI18n();
 
 const context = await parseArgs();
 context.config = await loadConfig(context.config);

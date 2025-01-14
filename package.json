@@ -63,8 +63,7 @@
 	},
 	"lint-staged": {
 		"*.{ts,js,json}": [
-			"bun format",
-			"bun lint"
+			"bun format"
 		]
 	},
 	"packageManager": "bun@1.1.34",

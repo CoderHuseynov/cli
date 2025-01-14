@@ -21,4 +21,5 @@ export interface Config {
 	skipArticles?: boolean;
 	skipAssignments?: boolean;
 	captionType?: "vtt" | "srt";
+	locale?: string;
 }

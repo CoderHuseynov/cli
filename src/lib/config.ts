@@ -7,9 +7,10 @@ import { log } from "./logger";
 import { filterNullValues, isValidJsonCookie, isValidNetscapeCookie } from "./utils";
 import chalk from "chalk";
 import getAppDataPath from "appdata-path";
+import { t } from "./i18n";
 
-const configFilePath = path.join(getAppDataPath("udemix"), "config.json");
-const configDirPath = path.dirname(configFilePath);
+const configDirPath = getAppDataPath("udemix");
+const configFilePath = path.join(configDirPath, "config.json");
 
 const configSchema: z.ZodType<Config> = z.object({
 	cookiePath: z.string(),
@@ -20,7 +21,8 @@ const configSchema: z.ZodType<Config> = z.object({
 	skipLectures: z.boolean(),
 	skipArticles: z.boolean(),
 	skipAssignments: z.boolean(),
-	captionType: z.enum(["vtt", "srt"]).optional()
+	captionType: z.enum(["vtt", "srt"]).optional(),
+	locale: z.string().default("en")
 });
 
 const defaultConfig: Config = {
@@ -31,19 +33,20 @@ const defaultConfig: Config = {
 	skipLectures: false,
 	skipArticles: false,
 	skipAssignments: false,
-	captionType: "vtt"
+	captionType: "vtt",
+	locale: "en"
 };
 
-async function readConfigFile(): Promise<Config | undefined> {
+export async function readConfigFile(): Promise<Config | undefined> {
 	try {
 		const configFile = await fs.promises.readFile(configFilePath, "utf-8");
 		return JSON.parse(configFile);
 	} catch (error) {
 		if ((error as any).code === "ENOENT") {
-			log.info(`Config file not found. Creating a new one at ${configFilePath}`);
+			log.info(t("cli.info.configFileNotFound", { configFilePath }));
 			return {};
 		}
-		log.error("Error reading config file:", error);
+		log.error(t("cli.errors.readConfigFile", { error }));
 	}
 }
 
@@ -51,10 +54,10 @@ async function handleCorruptedConfig(): Promise<void> {
 	const response = await prompts({
 		type: "select",
 		name: "action",
-		message: "Config file is corrupted. What would you like to do?",
+		message: t("cli.info.overwriteConfig"),
 		choices: [
-			{ title: "Overwrite the config", value: "overwrite" },
-			{ title: "Exit", value: "exit" }
+			{ title: t("cli.info.corruptedConfigAction"), value: "overwrite" },
+			{ title: t("cli.info.exitAction"), value: "exit" }
 		]
 	});
 
@@ -67,7 +70,7 @@ async function validateCookiePath(cookiePath: string): Promise<{ path: string; t
 
 		const isValidJson = await isValidJsonCookie(cookiePath);
 		if (!isValidJson && !(await isValidNetscapeCookie(cookiePath))) {
-			log.error("Invalid cookie format: The cookie must be in either JSON or Netscape format.");
+			log.error(t("cli.errors.invalidCookieFormat"));
 			process.exit(1);
 		}
 
@@ -78,7 +81,7 @@ async function validateCookiePath(cookiePath: string): Promise<{ path: string; t
 			type: isValidJson ? "json" : "netscape"
 		};
 	} catch {
-		log.error("Invalid cookie path: The specified cookie path does not exist.");
+		log.error(t("cli.errors.invalidCookiePath"));
 		process.exit(1);
 	}
 }
@@ -104,9 +107,7 @@ export async function loadConfig(config?: Config): Promise<Config> {
 		}
 
 		if (!newConfig.cookiePath) {
-			log.error(
-				"No cookie provided: Use '--cookie' to specify the path to a valid cookie file for authentication."
-			);
+			log.error(t("cli.errors.noCookieProvided"));
 			process.exit(1);
 		}
 
@@ -118,15 +119,19 @@ export async function loadConfig(config?: Config): Promise<Config> {
 		if (!validation.success) {
 			validation.error?.issues.forEach((error) => {
 				log.error(
-					// @ts-ignore
-					`Configuration validation failed: ${chalk.magenta.bold(error.path.join(""))} Expected: ${chalk.green(error.expected)}, Message: ${chalk.yellow(error.message)}`
+					t("cli.errors.configValidationFailed", {
+						path: chalk.magenta.bold(error.path.join("")),
+						// @ts-ignore
+						expected: chalk.green(error.expected),
+						message: chalk.yellow(error.message)
+					})
 				);
 			});
 			process.exit(1);
 		}
 
 		if (newConfig.concurrent !== undefined && newConfig.concurrent > 15) {
-			log.warn("Using more than 15 concurrent downloads may impact performance.");
+			log.warn(t("cli.warn.concurrentLimit"));
 		}
 
 		try {
@@ -138,7 +143,7 @@ export async function loadConfig(config?: Config): Promise<Config> {
 		await fs.promises.writeFile(configFilePath, JSON.stringify(newConfig, null, 2));
 		return newConfig;
 	} catch (error) {
-		log.error("Error loading or validating config:", error);
+		log.error(t("cli.errors.readConfigFile", { error }));
 		process.exit(1);
 	}
 }

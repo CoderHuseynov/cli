@@ -3,109 +3,119 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { getVersion } from "./utils";
 import { log } from "./logger";
+import { changeLanguage, t } from "./i18n";
 
 export async function parseArgs(): Promise<Context> {
 	const argv = await yargs(hideBin(process.argv))
-		.usage("Usage: $0 [options]")
+		.usage(t("cli.args.usage") + "$0 [options]")
+		.parserConfiguration({
+			"duplicate-arguments-array": false
+		})
 		.options({
 			// General Options
 			cookie: {
 				alias: "c",
-				describe: "Path to the cookie file for authentication",
+				describe: t("cli.args.options.cookie.describe"),
 				type: "string",
-				group: "General"
+				group: t("cli.args.groups.general")
 			},
 			key: {
 				alias: "k",
-				describe: "Decryption key for DRM-protected videos",
+				describe: t("cli.args.options.key.describe"),
 				type: "string",
-				group: "General"
+				group: t("cli.args.groups.general")
+			},
+			locale: {
+				alias: "l",
+				describe: t("cli.args.options.locale.describe"),
+				type: "string",
+				group: t("cli.args.groups.general")
 			},
 
 			// Course Identification
 			url: {
 				alias: "u",
-				describe: "URL of the Udemy course",
+				describe: t("cli.args.options.url.describe"),
 				type: "string",
-				group: "Course Identification"
+				group: t("cli.args.groups.courseIdentification")
 			},
 			id: {
 				alias: "i",
-				describe: "ID of the Udemy course",
+				describe: t("cli.args.options.id.describe"),
 				type: "string",
-				group: "Course Identification"
+				group: t("cli.args.groups.courseIdentification")
 			},
 			search: {
-				describe: "Search query",
+				describe: t("cli.args.options.search.describe"),
 				type: "string",
 				array: true,
-				group: "Course Identification"
+				group: t("cli.args.groups.courseIdentification")
 			},
 
 			// Download Options
 			concurrent: {
 				alias: "n",
-				describe: "Maximum number of downloads to process concurrently",
+				describe: t("cli.args.options.concurrent.describe"),
 				type: "number",
-				group: "Download Options"
+				group: t("cli.args.groups.downloadOptions")
 			},
 			captions: {
-				describe: "List of captions to download, separated by commas",
+				describe: t("cli.args.options.captions.describe"),
 				type: "string",
-				group: "Download Options"
+				group: t("cli.args.groups.downloadOptions")
 			},
 			"caption-type": {
-				describe: "Format of captions to download (vtt or srt)",
+				describe: t("cli.args.options.caption-type.describe"),
 				choices: ["vtt", "srt"],
 				type: "string",
-				group: "Download Options"
+				group: t("cli.args.groups.downloadOptions")
 			},
 			"start-chapter": {
-				describe: "Start downloading from the specified chapter number",
+				describe: t("cli.args.options.start-chapter.describe"),
 				type: "number",
-				group: "Download Options"
+				group: t("cli.args.groups.downloadOptions")
 			},
 			"start-lecture": {
-				describe: "Start downloading from the specified lecture number",
+				describe: t("cli.args.options.start-lecture.describe"),
 				type: "number",
-				group: "Download Options"
+				group: t("cli.args.groups.downloadOptions")
 			},
 			"end-chapter": {
-				describe: "Stop downloading at the specified chapter number",
+				describe: t("cli.args.options.end-chapter.describe"),
 				type: "number",
-				group: "Download Options"
+				group: t("cli.args.groups.downloadOptions")
 			},
 			"end-lecture": {
-				describe: "Stop downloading at the specified lecture number",
+				describe: t("cli.args.options.end-lecture.describe"),
 				type: "number",
-				group: "Download Options"
+				group: t("cli.args.groups.downloadOptions")
 			},
 
 			// Skip Options
 			"skip-captions": {
-				describe: "Exclude captions from download",
+				describe: t("cli.args.options.skip-captions.describe"),
 				type: "boolean",
-				group: "Skip Options"
+				group: t("cli.args.groups.skipOptions")
 			},
 			"skip-assets": {
-				describe: "Exclude course assets from download",
+				describe: t("cli.args.options.skip-assets.describe"),
 				type: "boolean",
-				group: "Skip Options"
+				group: t("cli.args.groups.skipOptions")
 			},
 			"skip-lectures": {
-				describe: "Exclude video lectures from download",
+				describe: t("cli.args.options.skip-lectures.describe"),
 				type: "boolean",
-				group: "Skip Options"
+				group: t("cli.args.groups.skipOptions")
 			},
 			"skip-articles": {
-				describe: "Exclude articles from download",
+				describe: t("cli.args.options.skip-articles.describe"),
 				type: "boolean",
-				group: "Skip Options"
+				group: t("cli.args.groups.skipOptions")
 			},
 			"skip-assignments": {
-				describe: "Exclude assignments from download",
+				describe: t("cli.args.options.skip-assignments.describe"),
 				type: "boolean",
-				group: "Skip Options"
+				group: t("cli.args.groups.skipOptions")
 			}
 		})
 		.version(`Udemix ${(await getVersion()) ?? "Unknown"}`)
@@ -114,7 +124,6 @@ export async function parseArgs(): Promise<Context> {
 		.alias("v", "version")
 		.wrap(null)
 		.middleware((argv) => {
-			// TODO: Handle Multiple Arguments
 			if (argv.search && Array.isArray(argv.search)) {
 				argv["combinedSearch"] = argv.search.join(" ").trim();
 			}
@@ -122,8 +131,12 @@ export async function parseArgs(): Promise<Context> {
 		.strict()
 		.parse();
 
+	if (argv.locale) {
+		await changeLanguage(argv.locale);
+	}
+
 	if (!argv.url && !argv.id && !argv["combinedSearch"]) {
-		log.error("Missing required parameter. Either '--url' or '--id' must be provided to proceed.");
+		log.error(t("cli.args.error.missingParameter"));
 		process.exit(1);
 	}
 
@@ -145,7 +158,8 @@ export async function parseArgs(): Promise<Context> {
 			skipLectures: argv["skip-lectures"],
 			skipArticles: argv["skip-articles"],
 			skipAssignments: argv["skip-assignments"],
-			captionType: argv["caption-type"] as "vtt" | "srt"
+			captionType: argv["caption-type"] as "vtt" | "srt",
+			locale: argv.locale
 		}
 	};
 

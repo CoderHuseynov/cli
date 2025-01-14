@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { UdemySearchCourse } from "@/models/udemy";
+import { log } from "@/lib/logger";
 
 const axiosInstance = axios.create({
 	headers: {
@@ -36,6 +37,7 @@ export async function searchUdemyCourses(query: string, page: number = 1): Promi
 		).data.courses;
 		return courses as UdemySearchCourse[];
 	} catch (error) {
-		throw new Error(`Failed to search Udemy courses. ${(error as Error).message}`);
+		log.error(`Failed to search Udemy courses. ${(error as Error).message}`);
+		process.exit(1);
 	}
 }

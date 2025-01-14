@@ -1,6 +1,8 @@
 import { createLogger, format, transports, addColors } from "winston";
 import "winston-daily-rotate-file";
 import chalk from "chalk";
+import * as path from "path";
+import getAppDataPath from "appdata-path";
 
 const { combine, timestamp, printf, colorize } = format;
 
@@ -38,13 +40,13 @@ const logger = createLogger({
 			format: combine(colorize(), consoleFormat)
 		}),
 		new transports.DailyRotateFile({
-			filename: "logs/%DATE%.log",
+			filename: path.join(getAppDataPath("udemix"), "logs", "%DATE%.log"),
 			datePattern: "YYYY-MM-DD",
 			maxFiles: "14d",
 			level: "info",
 			format: combine(timestamp({ format: "YYYY-MM-DD HH:mm:ss" }), fileFormat),
 			zippedArchive: true,
-			auditFile: "logs/audit.json"
+			auditFile: path.join(getAppDataPath("udemix"), "logs", "audit.json")
 		})
 	],
 	exitOnError: false
